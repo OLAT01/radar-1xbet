@@ -6,14 +6,14 @@ const GOLD_LEAGUES = [2, 3, 39, 40, 41, 42, 45, 48, 61, 62, 71, 78, 79, 81, 88, 
 
 export default function RadarDoubleTableau() {
   const [matchsLive, setMatchsLive] = useState<any[]>([]);
-  const [top3Pépites, setTop3Pépites] = useState<any[]>([]);
+  const [top3Pepites, setTop3Pepites] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const getPrediction = (m: any) => {
-    const elapsed = m.fixture.status.elapsed || 0;
-    const goals = (m.goals.home || 0) + (m.goals.away || 0);
+    const elapsed = m.fixture?.status?.elapsed || 0;
+    const goals = (m.goals?.home || 0) + (m.goals?.away || 0);
     if (elapsed > 25 && goals === 0) return { tip: "DOUBLE CHANCE 12", col: "#fbbf24" };
-    if (m.league.id === 39) return { tip: "+8.5 CORNERS", col: "#38bdf8" };
+    if (m.league?.id === 39) return { tip: "+8.5 CORNERS", col: "#38bdf8" };
     if (goals >= 1) return { tip: "TOTAL +2.5 BUTS", col: "#f87171" };
     return { tip: "VICTOIRE ÉQUIPE 1", col: "#34d399" };
   };
@@ -32,19 +32,19 @@ export default function RadarDoubleTableau() {
       const all = data.response || [];
       const now = new Date().getTime();
 
-      // FILTRE 1 : Opportunités 0.5 - 1.0 (Live 0-42 min)
+      // TABLEAU 1 : Live 0-42 min
       const live = all.filter((m: any) => 
-        GOLD_LEAGUES.includes(m.league.id) && m.fixture.status.short === "1H" && m.fixture.status.elapsed <= 42
+        GOLD_LEAGUES.includes(m.league?.id) && m.fixture?.status?.short === "1H" && m.fixture?.status?.elapsed <= 42
       );
       setMatchsLive(live.slice(0, 6));
 
-      // FILTRE 2 : Le Top 3 du Jour (Anticipation + Live Elite)
-      const pépites = all.filter((m: any) => {
-        const diff = (new Date(m.fixture.date).getTime() - now) / 60000;
-        return GOLD_LEAGUES.includes(m.league.id) && (diff <= 30 && diff > -45);
-      }).sort((a: any, b: any) => b.league.id - a.league.id);
+      // TABLEAU 2 : Top 3 Pépites (Anticipation + Live)
+      const pepites = all.filter((m: any) => {
+        const diff = (new Date(m.fixture?.date).getTime() - now) / 60000;
+        return GOLD_LEAGUES.includes(m.league?.id) && (diff <= 30 && diff > -45);
+      }).sort((a: any, b: any) => (b.league?.id || 0) - (a.league?.id || 0));
       
-      setTop3Pépites(pépites.slice(0, 3));
+      setTop3Pepites(pepites.slice(0, 3));
     } catch (err) { console.error(err); } finally { setLoading(false); }
   }, []);
 
@@ -56,51 +56,54 @@ export default function RadarDoubleTableau() {
 
   return (
     <div style={{ backgroundColor: "#020617", minHeight: "100vh", color: "white", padding: "10px", fontFamily: 'sans-serif' }}>
-      <h1 style={{ textAlign: 'center', color: '#fbbf24', fontSize: '20px', marginBottom: '20px' }}>📊 DASHBOARD PROFESSIONNEL</h1>
+      <h1 style={{ textAlign: 'center', color: '#fbbf24', fontSize: '20px', marginBottom: '20px', fontWeight: 'bold' }}>📊 DASHBOARD PROFESSIONNEL</h1>
 
-      <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth > 768 ? '1fr 1fr' : '1fr', gap: '20px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', maxWidth: '800px', margin: '0 auto' }}>
         
-        {/* TABLEAU 1 : OPPORTUNITÉS LIVE (0.5 - 1.0) */}
+        {/* SECTION 1 : FLUX LIVE */}
         <section>
-          <h2 style={{ fontSize: '14px', borderLeft: '4px solid #38bdf8', paddingLeft: '10px', color: '#38bdf8' }}>🔥 FLUX LIVE (SCALPING 0.5)</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+          <h2 style={{ fontSize: '14px', borderLeft: '4px solid #38bdf8', paddingLeft: '10px', color: '#38bdf8', marginBottom: '15px' }}>🔥 FLUX LIVE (STRATÉGIE 0.5 HT)</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {matchsLive.map(m => (
-              <div key={m.fixture.id} style={{ background: '#111827', padding: '10px', borderRadius: '8px', border: '1px solid #1e293b' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
-                  <span>{m.league.name}</span>
-                  <span style={{ color: '#fbbf24' }}>{m.fixture.status.elapsed}'</span>
+              <div key={m.fixture.id} style={{ background: '#111827', padding: '12px', borderRadius: '8px', border: '1px solid #1e293b' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '5px' }}>
+                  <span style={{color: '#94a3b8'}}>{m.league?.name}</span>
+                  <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{m.fixture?.status?.elapsed}'</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px', fontWeight: 'bold' }}>
-                  <span>{m.teams.home.name}</span>
-                  <span>{m.goals.home}-{m.goals.away}</span>
-                  <span>{m.teams.away.name}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                  <span>{m.teams?.home?.name}</span>
+                  <span style={{color: '#fbbf24'}}>{m.goals?.home}-{m.goals?.away}</span>
+                  <span>{m.teams?.away?.name}</span>
                 </div>
               </div>
             ))}
-            {matchsLive.length === 0 && <p style={{fontSize: '11px', color: '#475569'}}>En attente de matchs en 1H...</p>}
+            {!loading && matchsLive.length === 0 && <p style={{fontSize: '12px', color: '#475569', textAlign: 'center'}}>Aucune opportunité live pour le moment.</p>}
           </div>
         </section>
 
-        {/* TABLEAU 2 : LES 3 PÉPITES VIP (PRÉDICTIONS HAUTE PROBA) */}
+        {/* SECTION 2 : TOP 3 PÉPITES */}
         <section>
-          <h2 style={{ fontSize: '14px', borderLeft: '4px solid #fbbf24', paddingLeft: '10px', color: '#fbbf24' }}>🏆 LE TOP 3 DES PÉPITES (PRÉDICTIONS)</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
-            {top3Pépites.map((m, i) => {
+          <h2 style={{ fontSize: '14px', borderLeft: '4px solid #fbbf24', paddingLeft: '10px', color: '#fbbf24', marginBottom: '15px' }}>🏆 TOP 3 PÉPITES (PRÉDICTIONS)</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            {top3Pepites.map((m, i) => {
               const p = getPrediction(m);
+              const isLive = m.fixture?.status?.short === "1H";
               return (
                 <div key={m.fixture.id} style={{ background: '#1e293b', padding: '15px', borderRadius: '12px', border: '1px solid #fbbf24' }}>
-                  <div style={{ fontSize: '10px', color: '#94a3b8', marginBottom: '5px' }}>PÉPITE #{i+1} - {m.league.name}</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '10px' }}>
-                    <span>{m.teams.home.name}</span>
-                    <span style={{color: '#fbbf24'}}>{m.fixture.status.short === "1H" ? `${m.goals.home}-${m.goals.away}` : 'VS'}</span>
-                    <span>{m.teams.away.name}</span>
+                  <div style={{ fontSize: '10px', color: '#94a3b8', marginBottom: '8px' }}>PÉPITE #{i+1} - {m.league?.name}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', marginBottom: '12px', alignItems: 'center' }}>
+                    <span style={{flex: 1}}>{m.teams?.home?.name}</span>
+                    <span style={{color: '#fbbf24', fontSize: '18px', padding: '0 10px'}}>{isLive ? `${m.goals?.home}-${m.goals?.away}` : 'VS'}</span>
+                    <span style={{flex: 1, textAlign: 'right'}}>{m.teams?.away?.name}</span>
                   </div>
-                  <div style={{ background: 'rgba(251, 191, 36, 0.1)', padding: '8px', borderRadius: '6px', textAlign: 'center', border: `1px dashed ${p.col}` }}>
-                    <span style={{ fontSize: '13px', color: p.col, fontWeight: '900' }}>{p.tip}</span>
+                  <div style={{ background: 'rgba(251, 191, 36, 0.05)', padding: '10px', borderRadius: '8px', textAlign: 'center', border: `1px dashed ${p.col}` }}>
+                    <div style={{fontSize: '10px', color: '#94a3b8', marginBottom: '4px'}}>CONSEIL EXPERT</div>
+                    <div style={{ fontSize: '14px', color: p.col, fontWeight: '900' }}>{p.tip}</div>
                   </div>
                 </div>
               );
             })}
+            {!loading && top3Pepites.length === 0 && <p style={{fontSize: '12px', color: '#475569', textAlign: 'center'}}>Analyse des pépites en cours...</p>}
           </div>
         </section>
 
