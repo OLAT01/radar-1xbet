@@ -17,7 +17,7 @@ export default function RadarProPage() {
         {
           method: "GET",
           headers: {
-            "x-rapidapi-key": "7457ba7f869c23967e70d6f9edce7099", // <--- METS TA CLÉ ICI
+            "x-rapidapi-key": 7457ba7f869c23967e70d6f9edce7099, // <--- METS TA CLÉ ICI
             "x-rapidapi-host": "v3.football.api-sports.io",
           },
         }
