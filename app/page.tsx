@@ -4,22 +4,16 @@ import React, { useState, useEffect, useCallback } from "react";
 
 const GOLD_LEAGUES = [2, 3, 39, 40, 41, 42, 45, 48, 61, 62, 71, 78, 79, 81, 88, 94, 103, 113, 119, 135, 136, 140, 141, 143, 144, 179, 180, 188, 197, 203, 207, 218, 235, 253, 262, 268, 271, 281, 307, 345, 479, 529, 547, 554, 560, 667, 766, 848];
 
-export default function DashboardSauveur() {
-  const [coupons, setCoupons] = useState<any[][]>([]);
+export default function DashboardPermanent() {
+  const [coupons, setCoupons] = useState<any[][]>([[], [], []]); // Initialisé avec 3 tableaux vides
   const [leSauveur, setLeSauveur] = useState<any[]>([]);
   const [matchsLive, setMatchsLive] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  // LOGIQUE DE DÉCISION AUTOMATIQUE (L'app choisit la meilleure option)
   const getSingleBestTip = (m: any) => {
     const id = m.league?.id;
-    // Ligue des Champions ou Premier League -> Corners sont plus stables que les buts
     if (id === 2 || id === 39) return { tip: "PLUS DE 8.5 CORNERS", col: "#38bdf8" };
-    // Bundesliga ou Pays-Bas -> Les buts sont garantis
     if (id === 78 || id === 88) return { tip: "TOTAL PLUS DE 1.5 BUTS", col: "#f87171" };
-    // Espagne, Italie, France -> Sécurité Double Chance
     if ([140, 135, 61].includes(id)) return { tip: "DOUBLE CHANCE 12", col: "#fbbf24" };
-    // Par défaut pour les autres ligues Gold
     return { tip: "TOTAL PLUS DE 1.0 (REMBOURSÉ SI 1)", col: "#94a3b8" };
   };
 
@@ -35,20 +29,18 @@ export default function DashboardSauveur() {
       const now = new Date();
       const nowTimestamp = now.getTime();
 
-      // 1. RADAR LIVE (Réglages -15' à 42')
+      // 1. RADAR LIVE
       setMatchsLive(all.filter((m: any) => {
         const matchTime = new Date(m.fixture.date).getTime();
         const diffMinutes = (matchTime - nowTimestamp) / 60000;
-        const isGold = GOLD_LEAGUES.includes(m.league?.id);
-        if (diffMinutes < -120) return false;
-        return isGold && ((diffMinutes <= 15 && diffMinutes > 0) || (m.fixture.status.short === "1H" && m.fixture.status.elapsed <= 42));
+        return GOLD_LEAGUES.includes(m.league?.id) && diffMinutes >= -120 && ((diffMinutes <= 15 && diffMinutes > 0) || (m.fixture.status.short === "1H" && m.fixture.status.elapsed <= 42));
       }));
 
-      // 2. FILTRE DES MATCHS À VENIR (Prochaines 12h)
+      // 2. FILTRE FUTUR (24H)
       const futureMatchs = all.filter((m: any) => {
         const matchTime = new Date(m.fixture.date).getTime();
         const diffHours = (matchTime - nowTimestamp) / (1000 * 60 * 60);
-        return GOLD_LEAGUES.includes(m.league?.id) && m.fixture.status.short === "NS" && m.league.name !== "Friendlies" && diffHours > 0 && diffHours < 12;
+        return GOLD_LEAGUES.includes(m.league?.id) && m.fixture.status.short === "NS" && m.league.name !== "Friendlies" && diffHours > 0 && diffHours < 24;
       }).sort((a: any, b: any) => {
         const priority = [2, 39, 140, 135, 78, 61];
         const aP = priority.indexOf(a.league.id) !== -1 ? priority.indexOf(a.league.id) : 99;
@@ -56,14 +48,12 @@ export default function DashboardSauveur() {
         return aP - bP || new Date(a.fixture.date).getTime() - new Date(b.fixture.date).getTime();
       });
 
-      // SECTION "LE SAUVEUR" (Les 2 meilleurs matchs absolus)
       setLeSauveur(futureMatchs.slice(0, 2));
-
-      // LES 3 COUPONS (À partir du 3ème match pour ne pas doubler le Sauveur)
       const couponPool = futureMatchs.slice(2);
-      setCoupons([couponPool.slice(0, 3), couponPool.slice(3, 6), couponPool.slice(6, 9)].filter(p => p.length > 0));
+      // On force le découpage en 3 coupons même s'ils sont vides
+      setCoupons([couponPool.slice(0, 3), couponPool.slice(3, 6), couponPool.slice(6, 9)]);
 
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+    } catch (err) { console.error(err); }
   }, []);
 
   useEffect(() => {
@@ -75,58 +65,51 @@ export default function DashboardSauveur() {
   return (
     <div style={{ backgroundColor: "#020617", minHeight: "100vh", color: "white", padding: "10px", fontFamily: 'sans-serif' }}>
       
-      {/* TABLEAU LE SAUVEUR DE LA JOURNÉE */}
+      {/* LE SAUVEUR */}
       <section style={{ maxWidth: '600px', margin: '0 auto 30px auto', border: '2px solid #ef4444', borderRadius: '15px', background: 'rgba(239, 68, 68, 0.1)', padding: '15px' }}>
-        <h2 style={{ textAlign: 'center', color: '#ef4444', fontSize: '16px', fontWeight: '900', textTransform: 'uppercase', marginBottom: '15px' }}>🛡️ LE SAUVEUR (RÉCUPÉRATION)</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {leSauveur.map(m => (
-            <div key={m.fixture.id} style={{ background: '#020617', padding: '12px', borderRadius: '10px', border: '1px solid #ef4444' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#94a3b8' }}>
-                <span>{m.league.name}</span>
-                <span style={{color: '#ef4444'}}>{new Date(m.fixture.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+        <h2 style={{ textAlign: 'center', color: '#ef4444', fontSize: '16px', fontWeight: '900', marginBottom: '15px' }}>🛡️ LE SAUVEUR (RÉCUPÉRATION)</h2>
+        {leSauveur.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {leSauveur.map(m => (
+              <div key={m.fixture.id} style={{ background: '#020617', padding: '12px', borderRadius: '10px', border: '1px solid #ef4444' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}><span>{m.league.name}</span><span style={{color: '#ef4444'}}>{new Date(m.fixture.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '14px', margin: '8px 0' }}><span>{m.teams.home.name}</span><span>{m.teams.away.name}</span></div>
+                <div style={{ color: '#ef4444', fontSize: '12px', fontWeight: 'bold', textAlign: 'center', background: 'rgba(239, 68, 68, 0.2)', padding: '5px', borderRadius: '5px' }}>CIBLE : {getSingleBestTip(m).tip}</div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '14px', margin: '8px 0' }}>
-                <span>{m.teams.home.name}</span>
-                <span>{m.teams.away.name}</span>
-              </div>
-              <div style={{ color: '#ef4444', fontSize: '12px', fontWeight: 'bold', textAlign: 'center', background: 'rgba(239, 68, 68, 0.2)', padding: '5px', borderRadius: '5px' }}>
-                CIBLE : {getSingleBestTip(m).tip}
-              </div>
-            </div>
-          ))}
-          <p style={{ fontSize: '9px', textAlign: 'center', color: '#94a3b8', marginTop: '5px' }}>* Mise conseillée plus élevée pour couvrir les pertes.</p>
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{textAlign:'center', fontSize:'11px', color:'#94a3b8'}}>Analyse des meilleures pépites en cours...</p>
+        )}
       </section>
 
       <div style={{ maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '25px' }}>
-        {/* LES 3 COUPONS CLASSIQUES */}
-        {coupons.map((coupon, idx) => (
-          <section key={idx} style={{ border: '1px solid #334155', borderRadius: '12px', padding: '12px', background: '#0f172a' }}>
-            <div style={{ background: '#fbbf24', color: '#000', fontSize: '10px', fontWeight: '900', padding: '2px 10px', borderRadius: '4px', width: 'fit-content', margin: '0 auto 10px auto' }}>COUPON #{idx + 1}</div>
+        
+        {/* TITRES DES COUPONS TOUJOURS PRÉSENTS */}
+        {[1, 2, 3].map((num, i) => (
+          <section key={i} style={{ border: '1px solid #334155', borderRadius: '12px', padding: '12px', background: '#0f172a' }}>
+            <div style={{ background: '#fbbf24', color: '#000', fontSize: '10px', fontWeight: '900', padding: '2px 10px', borderRadius: '4px', width: 'fit-content', margin: '0 auto 10px auto' }}>COUPON #{num}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {coupon.map(m => (
-                <div key={m.fixture.id} style={{ background: '#1e293b', padding: '10px', borderRadius: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#94a3b8', marginBottom: '4px' }}>
-                    <span>{m.league.name}</span>
-                    <span style={{color: '#fbbf24'}}>{new Date(m.fixture.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+              {coupons[i] && coupons[i].length > 0 ? (
+                coupons[i].map(m => (
+                  <div key={m.fixture.id} style={{ background: '#1e293b', padding: '10px', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#94a3b8' }}><span>{m.league.name}</span><span style={{color: '#fbbf24'}}>{new Date(m.fixture.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px', margin: '5px 0' }}><span>{m.teams.home.name}</span><span style={{color: '#fbbf24'}}>VS</span><span>{m.teams.away.name}</span></div>
+                    <div style={{ color: getSingleBestTip(m).col, fontSize: '11px', fontWeight: 'bold', textAlign: 'center' }}>{getSingleBestTip(m).tip}</div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12px' }}>
-                    <span>{m.teams.home.name}</span>
-                    <span style={{color: '#fbbf24'}}>VS</span>
-                    <span>{m.teams.away.name}</span>
-                  </div>
-                  <div style={{ color: getSingleBestTip(m).col, fontSize: '11px', fontWeight: 'bold', textAlign: 'center', marginTop: '5px' }}>{getSingleBestTip(m).tip}</div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div style={{ padding: '20px', textAlign: 'center', border: '1px dashed #334155', borderRadius: '8px', color: '#475569', fontSize: '11px' }}>En attente de matchs pour le Coupon #{num}...</div>
+              )}
             </div>
           </section>
         ))}
 
-        {/* RADAR SCALPING (-15' à 42') */}
+        {/* RADAR LIVE */}
         <section style={{ borderTop: '2px solid #38bdf8', paddingTop: '20px' }}>
           <h2 style={{ color: '#38bdf8', fontSize: '14px', textAlign: 'center', marginBottom: '15px', fontWeight: 'bold' }}>🔥 RADAR LIVE</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {matchsLive.map(m => (
+            {matchsLive.length > 0 ? matchsLive.map(m => (
               <div key={m.fixture.id} style={{ background: '#111827', padding: '12px', borderRadius: '10px', border: m.fixture.status.short === "1H" ? '1px solid #38bdf8' : '1px dashed #475569' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginBottom: '5px' }}>
                   <span style={{color: '#94a3b8'}}>{m.league.name}</span>
@@ -138,7 +121,7 @@ export default function DashboardSauveur() {
                   <span style={{flex: 1, textAlign: 'right'}}>{m.teams.away.name}</span>
                 </div>
               </div>
-            ))}
+            )) : <p style={{textAlign: 'center', color: '#475569', fontSize: '11px'}}>Recherche de matchs en cours...</p>}
           </div>
         </section>
       </div>
