@@ -5,7 +5,7 @@ import { ShieldCheck, Clock, Flame, RefreshCw, Target, BarChart2 } from "lucide-
 
 const ELITE_BUTS = [39, 40, 41, 61, 140, 141, 78, 79, 135, 88, 94, 253, 2, 3, 1];
 
-export default function ProBetV16_2() {
+export default function ProBetV16_3() {
   const [leSauveur, setLeSauveur] = useState<any[]>([]);
   const [singleCoupon, setSingleCoupon] = useState<any[]>([]);
   const [radarHisto, setRadarHisto] = useState<any[]>([]);
@@ -23,17 +23,18 @@ export default function ProBetV16_2() {
 
   const forceFetch = async (section: string) => {
     setLoading(section);
-    // On vide la section pour prouver le rafraîchissement
-    if(section === 'sauveur') setLeSauveur([]);
-    if(section === 'coupon') setSingleCoupon([]);
-    if(section === 'histo') setRadarHisto([]);
-    if(section === 'danger') setRadarDanger([]);
+    // Vider les états pour forcer le changement visuel
+    if(section === 'sauveur' || section === 'all') setLeSauveur([]);
+    if(section === 'coupon' || section === 'all') setSingleCoupon([]);
+    if(section === 'histo' || section === 'all') setRadarHisto([]);
+    if(section === 'danger' || section === 'all') setRadarDanger([]);
 
     try {
       const today = new Date().toISOString().split('T')[0];
-      const resp = await fetch(`https://v3.football.api-sports.io/fixtures?date=${today}&timezone=Africa/Bamako`, {
-        headers: { "x-rapidapi-key": "7457ba7f869c23967e70d6f9edce7099", "x-rapidapi-host": "v3.football.api-sports.io" },
-        cache: 'no-store' // Force l'API à donner du frais
+      // Ajout d'un timestamp unique pour casser le cache API de manière agressive
+      const timestamp = new Date().getTime();
+      const resp = await fetch(`https://v3.football.api-sports.io/fixtures?date=${today}&timezone=Africa/Bamako&cacheBust=${timestamp}`, {
+        headers: { "x-rapidapi-key": "7457ba7f869c23967e70d6f9edce7099", "x-rapidapi-host": "v3.football.api-sports.io" }
       });
       const data = await resp.json();
       const all = data.response || [];
@@ -48,10 +49,10 @@ export default function ProBetV16_2() {
         setRadarHisto(all.filter((m: any) => m.fixture.status.elapsed >= 15 && m.fixture.status.elapsed <= 42 && (m.goals.home + m.goals.away) >= 1).slice(0, 6));
       
       if (section === 'danger' || section === 'all') 
-        // Filtre Danger : Matchs en 2ème mi-temps (pression but tardif)
-        setRadarDanger(all.filter((m: any) => m.fixture.status.short === "2H" || (m.fixture.status.elapsed >= 45)).slice(0, 5));
+        // RÈGLE : Score présent + Disparition après 88' minute
+        setRadarDanger(all.filter((m: any) => m.fixture.status.elapsed >= 45 && m.fixture.status.elapsed < 88).slice(0, 5));
         
-    } catch (e) { console.error("Erreur Refresh"); }
+    } catch (e) { console.error("Refresh Error"); }
     setLoading(null);
   };
 
@@ -60,17 +61,18 @@ export default function ProBetV16_2() {
   return (
     <div className="min-h-screen bg-[#0a0f1d] text-slate-200 pb-24 font-sans uppercase font-bold tracking-tighter">
       <header className="bg-[#11192e] p-4 border-b border-slate-800 sticky top-0 z-50 flex justify-between items-center shadow-2xl">
-        <div className="flex items-center gap-2 text-red-600"><Target /><span className="text-lg italic tracking-tighter">PROBET V16.2 GOLD</span></div>
-        <button onClick={() => forceFetch('all')} className="p-2 bg-red-600/10 rounded-full border border-red-600/20 active:scale-95 transition-transform">
+        <div className="flex items-center gap-2 text-red-600"><Target /><span className="text-lg italic tracking-tighter">PROBET V16.3 GOLD</span></div>
+        <button onClick={() => forceFetch('all')} className="p-2 bg-red-600/10 rounded-full border border-red-600/20 active:bg-red-600/30">
           <RefreshCw className={loading === 'all' ? "animate-spin text-red-600" : "text-red-600"} size={20} />
         </button>
       </header>
 
       <main className="max-w-md mx-auto p-4 space-y-8">
+        {/* SECTION SAUVEUR */}
         <section className="space-y-3">
           <div className="flex justify-between items-center px-1">
             <h3 className="text-red-600 text-[10px] flex items-center gap-2"><ShieldCheck size={14}/> LE SAUVEUR (ELITE)</h3>
-            <button onClick={() => forceFetch('sauveur')} className="active:rotate-180 transition-all"><RefreshCw size={14} className={loading === 'sauveur' ? "animate-spin text-red-500" : ""}/></button>
+            <button onClick={() => forceFetch('sauveur')}><RefreshCw size={14} className={loading === 'sauveur' ? "animate-spin text-red-500" : ""}/></button>
           </div>
           {leSauveur.map((m, i) => {
             const op = getLogic(m);
@@ -87,6 +89,7 @@ export default function ProBetV16_2() {
           })}
         </section>
 
+        {/* SECTION COUPON */}
         <section className="bg-[#11192e] p-5 rounded-3xl border border-slate-800">
           <div className="flex justify-between items-center mb-4 px-1">
             <h3 className="text-slate-500 text-[10px] italic">COUPON {new Date().toLocaleDateString()}</h3>
@@ -105,9 +108,10 @@ export default function ProBetV16_2() {
           </div>
         </section>
 
+        {/* RADAR HISTORIQUE (15-42) */}
         <section className="bg-sky-600/5 border border-sky-600/20 rounded-xl overflow-hidden shadow-xl text-white">
           <div className="bg-sky-600/10 p-3 flex justify-between items-center text-sky-400 text-[9px]">
-            <div className="flex items-center gap-2"><Clock size={14}/> RADAR HISTORIQUE (15'-42' / +BUT)</div>
+            <div className="flex items-center gap-2"><Clock size={14}/> RADAR HISTORIQUE (15'-42')</div>
             <button onClick={() => forceFetch('histo')}><RefreshCw size={12} className={loading === 'histo' ? "animate-spin text-sky-400" : ""}/></button>
           </div>
           <div className="divide-y divide-slate-800 font-black">
@@ -120,26 +124,27 @@ export default function ProBetV16_2() {
           </div>
         </section>
 
+        {/* RADAR DANGER (AUTO-OFF @ 88') */}
         <section className="bg-orange-600/5 border border-orange-600/20 rounded-xl overflow-hidden shadow-xl text-white">
           <div className="bg-orange-600/10 p-3 flex justify-between items-center text-orange-400 text-[9px]">
-            <div className="flex items-center gap-2"><Flame size={14}/> SIGNAL PRESSION DANGER (SCORE LIVE)</div>
+            <div className="flex items-center gap-2"><Flame size={14}/> RADAR DANGER (MAX 88')</div>
             <button onClick={() => forceFetch('danger')}><RefreshCw size={12} className={loading === 'danger' ? "animate-spin text-orange-400" : ""}/></button>
           </div>
-          {radarDanger.map((m, i) => (
+          {radarDanger.length > 0 ? radarDanger.map((m, i) => (
             <div key={i} className="p-4 border-b border-slate-800 flex flex-col gap-2 bg-[#11192e]/30 last:border-0">
               <div className="flex justify-between items-center text-[11px] font-black">
                 <span className="truncate max-w-[160px]">{m.teams.home.name} - {m.teams.away.name}</span>
                 <span className="text-orange-500 text-[14px]">{m.goals.home} - {m.goals.away}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-[10px] text-slate-500 italic">Objectif: Over Buts 2ème Mi-temps</span>
+                <span className="text-[10px] text-slate-500 italic">Score final probable +1.5/2.5</span>
                 <div className="flex items-center gap-2 text-orange-500 text-[11px]">
                   <span className="animate-pulse">{m.fixture.status.elapsed}'</span>
                   <BarChart2 size={12} className="animate-bounce" />
                 </div>
               </div>
             </div>
-          ))}
+          )) : <div className="p-4 text-center text-slate-600 text-[9px]">AUCUN MATCH EN PRESSION (45'-88')</div>}
         </section>
       </main>
     </div>
